@@ -5,6 +5,9 @@ const app = express()
 app.use(require('cors')())
 // 格式化为json格式
 app.use(express.json())
+// 静态托管
+app.use('/uploads', express.static(__dirname + '/uploads'))
+
 
 // 引入数据库连接文件
 require('./plugins/db')(app)
