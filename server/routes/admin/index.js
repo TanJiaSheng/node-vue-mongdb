@@ -5,13 +5,11 @@ module.exports = app => {
   // 用户模块
   const AdminUser = require('../../models/AdminUser')
   // 验证插件
-  const assert =require('assert')
+  const assert =require('http-assert')
   // 引入路由
   const router = express.Router({
     mergeParams: true
   })
-
-  const Inflection = require('inflection')
 
   // 创建资源
   router.post('/', async (req, res) => {
@@ -38,15 +36,7 @@ module.exports = app => {
   })
 
   // 资源列表
-  router.get('/', async (req, res, next) => {
-    // 获取请求头
-    const token = String(req.headers.authorization || '').split(' ').pop()
-    // 校验token，返回一个包含用户id的对象
-    const { id } = jwt.verify(token, app.get('secret'))
-    // id验证是否有该用户
-    req.user = await AdminUser.findById(id)
-    await next()
-  }, async (req, res) => {
+  router.get('/', async (req, res) => {
     // 判断引入模块名字，设置关联parent属性
     // populate('parent') 关联
     const queryOptions = {}
@@ -65,18 +55,19 @@ module.exports = app => {
     res.send(models)
   })
 
-  app.use('/admin/api/rest/:resource', async (req, res, next) => {
-    // 设置自动引入模块，通过判断请求接口的来源，使用 inflection插件 转换为类模式的字符串
-    const modelName = Inflection.classify(req.params.resource)
-    req.Model = require(`../../models/${modelName}`)
-    // 中间件，不用再每个接口函数都另外添加
-    next()
-  }, router)
+  // 登录校验中间件
+  const authMiddleware = require('../../middleware/auth')
+
+  // 资源中间件
+  const resourceMiddleware = require('../../middleware/resource')
+
+  // 资源通用接口
+  app.use('/admin/api/rest/:resource', authMiddleware(), resourceMiddleware(), router)
 
   // 文件上传插件
   const multer = require('multer')
   const upload = multer({dest: __dirname + '/../../uploads'})
-  app.post('/admin/api/upload', upload.single('file'), async (req, res) => {
+  app.post('/admin/api/upload', authMiddleware(), upload.single('file'), async (req, res) => {
     const file = req.file
     file.url = `http://localhost:3000/uploads/${file.filename}`
     res.send(file)
@@ -88,18 +79,12 @@ module.exports = app => {
     // 1. 根据用户名找用户
     // select('+password') 查询出密码（由于前面设置select: false 不可查）
     const user = await AdminUser.findOne({username}).select('+password')
-    if (!user) {
-      return res.status(422).send({
-        message: '用户不存在'
-      })
-    }
+    assert(user, 442, '用户不存在')
+  
     // 2. 校验密码
     const isValid = require('bcrypt').compareSync(password, user.password)
-    if (!isValid) {
-      return res.status(422).send({
-        message: '密码错误'
-      })
-    }
+    assert(isValid, 422, '密码错误')
+    
     // 3. 返回token
     const token = jwt.sign({ id: user._id }, app.get('secret'))
     res.send({
@@ -111,6 +96,13 @@ module.exports = app => {
           status: 200
       },
       token
+    })
+  })
+
+  // 错误处理函数
+  app.use(async (err, req, res, next) => {
+    res.status(err.statusCode || 500).send({
+      message: err.message
     })
   })
 }

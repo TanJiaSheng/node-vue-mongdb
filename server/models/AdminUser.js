@@ -10,7 +10,8 @@ const schema = new mongoose.Schema({
     return require('bcrypt').hashSync(val, 10)
   } },
   phone: { type: Number },
-  email: { type: String }
+  email: { type: String },
+  avatar: { type: String }
 })
 
 module.exports = mongoose.model('AdminUser', schema)
