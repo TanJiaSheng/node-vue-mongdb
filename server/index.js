@@ -1,6 +1,9 @@
 const express = require('express')
 const app = express()
 
+// 设置全局字段（用于设置token）
+app.set('secret', '1fvfjy3frq6zf56ef')
+
 // 启用跨域
 app.use(require('cors')())
 // 格式化为json格式
