@@ -15,6 +15,7 @@ app.use('/uploads', express.static(__dirname + '/uploads'))
 // 引入数据库连接文件
 require('./plugins/db')(app)
 require('./routes/admin')(app)
+require('./routes/web')(app)
 
 // 启动3000端口
 app.listen(3000, () => {
